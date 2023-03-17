@@ -42,7 +42,7 @@ def setup():
     conn.execute(sql)
     conn.execute("create function udf1 as './udf1.py' outputtype int language 'python'")
     conn.execute("create aggregate function udf2 as './udf2.py' outputtype int bufSize 128 language 'python'")
-    conn.execute("create function bit_and as './libbit_and.so' outputtype int");
+    conn.execute("create function bit_and as './libbitand.so' outputtype int");
     conn.execute("create aggregate function l2norm as './libl2norm.so' outputtype double bufSize 8")
     conn.execute("create function pybitand as './pybitand.py' outputtype int language 'python'")
     conn.execute("create aggregate function pyl2norm as './pyl2norm.py' outputtype double bufSize 128 language 'python'")
@@ -84,6 +84,23 @@ def test_py_bitand_perf(conn):
     t1 = datetime.datetime.now()
     for i in range(times):
         q = conn.query('select pybitand(i,i) from udf.t')
+        r = q.fetch_all()
+    t2 = datetime.datetime.now();
+    print('py scalar bit_and 1M rows', t2-t1);
+
+
+def test_c_l2norm_perf(conn):
+    t1 = datetime.datetime.now()
+    for i in range(times):
+        q = conn.query('select l2norm(i) from udf.t')
+        r = q.fetch_all()
+    t2 = datetime.datetime.now();
+    print('c scalar bit_and 1M rows', t2-t1);
+
+def test_py_l2norm_perf(conn):
+    t1 = datetime.datetime.now()
+    for i in range(times):
+        q = conn.query('select pyl2norm(i) from udf.t')
         r = q.fetch_all()
     t2 = datetime.datetime.now();
     print('py scalar bit_and 1M rows', t2-t1);
