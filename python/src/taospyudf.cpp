@@ -235,9 +235,9 @@ class PyScalarUdf : public PyUdf {
 
   int32_t scalarProc(SUdfDataBlock *dataBlock, SUdfColumn *resultCol) {
     SUdfColumnData *resultData = &resultCol->colData;
-    UdfDataBlock block(dataBlock);
-    py::object   pyblk = py::cast(&block);
-    py::tuple    pyTuple = _scalarProc(pyblk);
+    UdfDataBlock    block(dataBlock);
+    py::object      pyblk = py::cast(&block);
+    py::tuple       pyTuple = _scalarProc(pyblk);
     if (pyTuple.size() != dataBlock->numOfRows) {
       PLOGE << "scalar udf. row number: " << dataBlock->numOfRows << ", result size: " << pyTuple.size();
       throw std::runtime_error("python udf scalar function shall return each result for each row.");
@@ -338,8 +338,14 @@ class PyAggUdf : public PyUdf {
   }
 
   void aggFinish(SUdfInterBuf *buf, SUdfInterBuf *resultData) {
-    py::bytes  pybuf(buf->buf, buf->bufLen);
-    py::object obj = _aggFinish(pybuf);
+    py::object pyobjBuf;
+    if (buf->numOfResult == 0) {
+      pyobjBuf = py::none();
+    } else {
+      py::bytes pybuf(buf->buf, buf->bufLen);
+      pyobjBuf = pybuf;
+    }
+    py::object obj = _aggFinish(pyobjBuf);
     if (obj.is_none()) {
       resultData->numOfResult = 0;
     } else {

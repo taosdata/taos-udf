@@ -33,37 +33,25 @@ def fill_table(conn):
     conn.execute(" insert into tb3 values ('2022-07-10 16:33:05', false, 5, 5, 5, 5, 5, 5, 5, 5, 5.0, 5.0, 'e', 'e')")
     conn.execute(" insert into tb3(fts) values ('2023-03-09 15:40:00')")
 
+def execute_ignore_exception(conn, sql):
+    try:
+        conn.execute(sql)
+    except:
+        pass
+
 @pytest.fixture(scope="module", name="conn")
 def setup():
     conn = taos.connect()
-    try:
-        conn.execute('drop function udf1int')
-    except:
-        pass
-    try:
-        conn.execute('drop function udf1var')
-    except:
-        pass
-    try:
-        conn.execute('drop function udf1nchar')
-    except:
-        pass        
-    try:
-        conn.execute('drop function udf1double')
-    except:
-        pass
-    try:
-        conn.execute('drop function udf2double')
-    except:
-        pass
-    try:
-        conn.execute('drop function udf2float')
-    except:
-        pass    
-    try:
-        conn.execute('drop database udf')
-    except:
-        pass
+    execute_ignore_exception(conn, 'drop function udf1int')
+    execute_ignore_exception(conn, 'drop function udf1var')
+    execute_ignore_exception(conn, 'drop function udf1nchar')
+    execute_ignore_exception(conn, 'drop function udf1double')
+    execute_ignore_exception(conn, 'drop function udf2double')
+    execute_ignore_exception(conn, 'drop function udf2float')
+    execute_ignore_exception(conn, 'drop function udf1missfunc')
+    execute_ignore_exception(conn, 'drop function udf2missfunc')
+    execute_ignore_exception(conn, 'drop database udf')
+
     conn.execute('create database udf')
     conn.select_db('udf')
     conn.execute("create function udf1int as './udf1.py' outputtype int language 'python'")
@@ -72,7 +60,8 @@ def setup():
     conn.execute("create function udf1double as './udf1.py' outputtype double language 'python'")
     conn.execute("create aggregate function udf2double as './udf2.py' outputtype double bufsize 128 language 'python'")
     conn.execute("create aggregate function udf2float as './udf2.py' outputtype float bufsize 128 language 'python'")
-
+    conn.execute("create function udf1missfunc as './udf1_miss_func.py' outputtype int language 'python'")
+    conn.execute("create aggregate function udf2missfunc as './udf2_miss_func.py' outputtype int language 'python'")
     fill_table(conn)
     yield conn
 
@@ -87,3 +76,13 @@ def test_scalar_var_error(conn):
     with pytest.raises(taos.ProgrammingError):
       q = conn.query('select udf1var(fint) from udf.st1 order by tbname, fts')
       rs = q.fetch_all()
+
+def test_scalar_miss_func(conn):
+    with pytest.raises(taos.ProgrammingError):
+        q = conn.query('select udf1missfunc(fdouble) from udf1.st1')
+        rs = q.fetch_all
+
+def test_agg_miss_func(conn):
+    with pytest.raises(taos.ProgrammingError):
+        q = conn.query('select udf2missfunc(fint) from udf.st1')
+        rs = q.fetch_all
