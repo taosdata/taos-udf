@@ -29,7 +29,7 @@ test = ["pytest", "taospy"]
 
 [tool.scikit-build]
 wheel.expand-macos-universal-tags = true
-sdist.exclude = ["extern/pybind11", "tests/__pycache__", "tests/.pytest_cache"]
+sdist.exclude = ["extern/pybind11", "tests"]
 
 
 [tool.cibuildwheel]
