@@ -28,8 +28,8 @@ def setup():
     for i in range(rows):
         sql = sql + '(now + {}a, {})'.format(i, i)
     conn.execute(sql)
-    conn.execute("create function udf1 as './udf1.py' outputtype int language 'python'")
-    conn.execute("create aggregate function udf2 as './udf2.py' outputtype int bufSize 128 language 'python'")
+    conn.execute("create function udf1 as './py-udf/udf1.py' outputtype int language 'python'")
+    conn.execute("create aggregate function udf2 as './py-udf/udf2.py' outputtype int bufSize 128 language 'python'")
 
     yield conn
 

@@ -54,14 +54,14 @@ def setup():
 
     conn.execute('create database udf')
     conn.select_db('udf')
-    conn.execute("create function udf1int as './udf1.py' outputtype int language 'python'")
-    conn.execute("create function udf1var as './udf1.py' outputtype binary(10) language 'python'" )
-    conn.execute("create function udf1nchar as './udf1.py' outputtype nchar(10) language 'python'" )
-    conn.execute("create function udf1double as './udf1.py' outputtype double language 'python'")
-    conn.execute("create aggregate function udf2double as './udf2.py' outputtype double bufsize 128 language 'python'")
-    conn.execute("create aggregate function udf2float as './udf2.py' outputtype float bufsize 128 language 'python'")
-    conn.execute("create function udf1missfunc as './udf1_miss_func.py' outputtype int language 'python'")
-    conn.execute("create aggregate function udf2missfunc as './udf2_miss_func.py' outputtype int language 'python'")
+    conn.execute("create function udf1int as './py-udf/udf1.py' outputtype int language 'python'")
+    conn.execute("create function udf1var as './py-udf/udf1.py' outputtype binary(10) language 'python'" )
+    conn.execute("create function udf1nchar as './py-udf/udf1.py' outputtype nchar(10) language 'python'" )
+    conn.execute("create function udf1double as './py-udf/udf1.py' outputtype double language 'python'")
+    conn.execute("create aggregate function udf2double as './py-udf/udf2.py' outputtype double bufsize 128 language 'python'")
+    conn.execute("create aggregate function udf2float as './py-udf/udf2.py' outputtype float bufsize 128 language 'python'")
+    conn.execute("create function udf1missfunc as './py-udf/udf1_miss_func.py' outputtype int language 'python'")
+    conn.execute("create aggregate function udf2missfunc as './py-udf/udf2_miss_func.py' outputtype int language 'python'")
     fill_table(conn)
     yield conn
 

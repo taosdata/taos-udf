@@ -1,6 +1,7 @@
 import taos
 import pytest
 import datetime
+import os
 
 rows = 1024
 times = 1024;
@@ -40,12 +41,13 @@ def setup():
     for i in range(rows):
         sql = sql + '(now + {}a, {})'.format(i, i)
     conn.execute(sql)
-    conn.execute("create function udf1 as './udf1.py' outputtype int language 'python'")
-    conn.execute("create aggregate function udf2 as './udf2.py' outputtype int bufSize 128 language 'python'")
-    conn.execute("create function bit_and as './libbitand.so' outputtype int");
-    conn.execute("create aggregate function l2norm as './libl2norm.so' outputtype double bufSize 8")
-    conn.execute("create function pybitand as './pybitand.py' outputtype int language 'python'")
-    conn.execute("create aggregate function pyl2norm as './pyl2norm.py' outputtype double bufSize 128 language 'python'")
+    conn.execute("create function udf1 as './py-udf/udf1.py' outputtype int language 'python'")
+    conn.execute("create aggregate function udf2 as './py-udf/udf2.py' outputtype int bufSize 128 language 'python'")
+    os.system("./c-udf/compile_udf.sh")
+    conn.execute("create function bit_and as './c-udf/libbitand.so' outputtype int");
+    conn.execute("create aggregate function l2norm as './c-udf/libl2norm.so' outputtype double bufSize 8")
+    conn.execute("create function pybitand as './py-udf/pybitand.py' outputtype int language 'python'")
+    conn.execute("create aggregate function pyl2norm as './py-udf/pyl2norm.py' outputtype double bufSize 128 language 'python'")
     yield conn
 
     conn.close()

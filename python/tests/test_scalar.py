@@ -51,7 +51,7 @@ def setup():
     
     conn.execute('create database udf')
     conn.select_db('udf')
-    conn.execute("create function udfscl as './udfscalar.py' outputtype binary(16384) language 'python'")
+    conn.execute("create function udfscl as './py-udf/udfscalar.py' outputtype binary(16384) language 'python'")
     fill_table(conn)
     yield conn
 
