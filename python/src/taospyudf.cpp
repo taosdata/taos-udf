@@ -39,7 +39,6 @@ struct UdfDataBlock {
 
   py::object data(int i, int j) {
     if (i < 0 || i > _dataBlock->numOfRows || j < 0 || j > _dataBlock->numOfCols) {
-      // TODO: choose indexerror exception
       throw py::index_error("out of range for data call");
     }
     SUdfColumn *col = _dataBlock->udfCols[j];
@@ -81,7 +80,6 @@ struct UdfDataBlock {
       case TSDB_DATA_TYPE_BINARY:
         return py::bytes(varDataVal(data), varDataLen(data));
 
-      // TODO: json
       case TSDB_DATA_TYPE_JSON:
       default:
         throw py::type_error("unsupported python udf type");
@@ -157,7 +155,6 @@ struct UdfDataBlock {
             udfColDataSet(col, i, data.get(), false);
             break;
           }
-          // TODO: json
           case TSDB_DATA_TYPE_JSON:
           default: {
             throw py::type_error("unsupported python udf type");
@@ -194,7 +191,7 @@ class PyUdf {
         _funcType(udfInfo->funcType),
         _outputType(udfInfo->outputType),
         _outputLen(udfInfo->outputLen),
-        _bufSize(udfInfo->bufSize) {
+        _bufSize(udfInfo->bufSize) { 
     std::filesystem::path p(_path);
     _module = py::module_::import(p.stem().c_str());
   }
@@ -405,7 +402,6 @@ class PyAggUdf : public PyUdf {
           resultData->numOfResult = 1;
           break;
         }
-        // TODO: json
         case TSDB_DATA_TYPE_JSON:
         default: {
           throw py::type_error("unsupported python udf type");
@@ -433,6 +429,7 @@ PyUdf *PyUdf::createPyUdf(const SScriptUdfInfo *udfInfo) {
 }
 
 int32_t doPyUdfInit(SScriptUdfInfo *udf, void **pUdfCtx) {
+  PLOGD << "python udf init. path: " << udf->path << ", name: " << udf->name; 
   try {
     PyUdf *pyUdf = PyUdf::createPyUdf(udf);
     pyUdf->loadFunctions();
@@ -441,10 +438,12 @@ int32_t doPyUdfInit(SScriptUdfInfo *udf, void **pUdfCtx) {
     PLOGE << "call pyUdf init function. error " << e.what();
     return TSDB_UDF_PYTHON_EXEC_FAILURE;
   }
+  PLOGI << "python udf init. name " << udf->name << ". context: " << static_cast<void*>(*pUdfCtx);
   return 0;
 }
 
 int32_t doPyUdfDestroy(void *udfCtx) {
+  PLOGD << "python udf destory. context: " << static_cast<void*>(udfCtx); 
   try {
     PyUdf *pyUdf = static_cast<PyUdf *>(udfCtx);
     delete pyUdf;
@@ -456,37 +455,40 @@ int32_t doPyUdfDestroy(void *udfCtx) {
 }
 
 int32_t doPyUdfScalarProc(SUdfDataBlock *block, SUdfColumn *resultCol, void *udfCtx) {
+  PLOGD << "call pyUdfScalar proc function. context " << static_cast<void*>(udfCtx) << ". rows: " << block->numOfRows;
   try {
     PyUdf       *pyUdf = static_cast<PyUdf *>(udfCtx);
     PyScalarUdf *pyScalarUdf = dynamic_cast<PyScalarUdf *>(pyUdf);
     pyScalarUdf->scalarProc(block, resultCol);
     return 0;
   } catch (std::exception &e) {
-    PLOGE << "call pyUdfScalar proc function. error " << e.what();
+    PLOGE << "call pyUdfScalar proc function. context " << static_cast<void*>(udfCtx) << ". error: " << e.what();
     return TSDB_UDF_PYTHON_EXEC_FAILURE;
   }
   return 0;
 }
 
 int32_t doPyUdfAggStart(SUdfInterBuf *buf, void *udfCtx) {
+  PLOGD << "call pyUdfAgg start function. context " << static_cast<void*>(udfCtx);
   try {
     PyUdf    *pyUdf = static_cast<PyUdf *>(udfCtx);
     PyAggUdf *pyAggUdf = dynamic_cast<PyAggUdf *>(pyUdf);
     pyAggUdf->aggStart(buf);
   } catch (std::exception &e) {
-    PLOGE << "call pyUdfAgg start function. error " << e.what();
+    PLOGE << "call pyUdfAgg start function. context " << static_cast<void*>(udfCtx) << " .error: " << e.what();
     return TSDB_UDF_PYTHON_EXEC_FAILURE;
   }
   return 0;
 }
 
 int32_t doPyUdfAggProc(SUdfDataBlock *block, SUdfInterBuf *interBuf, SUdfInterBuf *newInterBuf, void *udfCtx) {
+  PLOGD << "call pyAggUdf proc function. context " << static_cast<void*>(udfCtx) << ". rows: " << block->numOfRows;
   try {
     PyUdf    *pyUdf = static_cast<PyUdf *>(udfCtx);
     PyAggUdf *pyAggUdf = dynamic_cast<PyAggUdf *>(pyUdf);
     pyAggUdf->aggProc(block, interBuf, newInterBuf);
   } catch (std::exception &e) {
-    PLOGE << "call pyAggUdf proc function. error " << e.what();
+    PLOGE << "call pyAggUdf proc function. context " << static_cast<void*>(udfCtx) << ". error " << e.what();
     return TSDB_UDF_PYTHON_EXEC_FAILURE;
   }
   return 0;
@@ -507,12 +509,13 @@ int32_t doPyUdfAggMerge(SUdfInterBuf *inputBuf1, SUdfInterBuf *inputBuf2, SUdfIn
 }
 
 int32_t doPyUdfAggFinish(SUdfInterBuf *buf, SUdfInterBuf *resultData, void *udfCtx) {
+  PLOGD << "call pyAggUdf finish function. context " << static_cast<void*>(udfCtx);
   try {
     PyUdf    *pyUdf = static_cast<PyUdf *>(udfCtx);
     PyAggUdf *pyAggUdf = dynamic_cast<PyAggUdf *>(pyUdf);
     pyAggUdf->aggFinish(buf, resultData);
   } catch (std::exception &e) {
-    PLOGE << "call pyAggUdf finish function. eror " << e.what();
+    PLOGE << "call pyAggUdf finish function. context " << static_cast<void*>(udfCtx) << ". error " << e.what();
     return TSDB_UDF_PYTHON_EXEC_FAILURE;
   }
   return 0;
@@ -525,6 +528,7 @@ std::vector<std::string> resplit(const std::string &s, const std::regex &sep_reg
 }
 
 int32_t doPyOpen(SScriptUdfEnvItem *items, int numItems) {
+  PLOGI << "python udf plugin open";
   if (Py_IsInitialized() == 1) {
     return TSDB_UDF_PYTHON_WRONG_STATE;
   }
@@ -541,26 +545,27 @@ int32_t doPyOpen(SScriptUdfEnvItem *items, int numItems) {
     }
     auto taosPyUdf = py::module::import("taospyudf");
   } catch (std::exception &e) {
-    PLOGE << "pyOpen error. " << e.what();
+    PLOGE << "python udf plugin open error. " << e.what();
     return TSDB_UDF_PYTHON_EXEC_FAILURE;
   }
   return 0;
 }
 
 int32_t doPyClose() {
+  PLOGI << "python udf plugin close.";
   if (Py_IsInitialized() == 0) {
     return TSDB_UDF_PYTHON_WRONG_STATE;
   }
   try {
     py::finalize_interpreter();
   } catch (std::exception &e) {
-    std::cerr << e.what() << std::endl;
+    PLOGE << "python udf plugin close. " << e.what();
 
     return TSDB_UDF_PYTHON_EXEC_FAILURE;
   }
   return 0;
 }
-
+// thread pool from https://maidamai0.github.io/post/a-simple-thread-pool/
 class ThreadPool {
   using task_type = std::function<void()>;
 
@@ -584,7 +589,7 @@ class ThreadPool {
           task();
         }
       }));
-      PLOGI << "worker #" << workers_.back().get_id() << " started";
+      PLOGI << "python udf worker #" << workers_.back().get_id() << " started";
     }
   }
 
@@ -678,8 +683,8 @@ int32_t pyOpen(SScriptUdfEnvItem *items, int numItems) {
     }
   }
   logPath += std::string("/taospyudf.log");
-  plog::init(plog::debug, logPath.c_str(), 50 * 1024 * 1024, 5);
-  PLOGI << "taos python udf open";
+  plog::init(plog::info, logPath.c_str(), 50 * 1024 * 1024, 5);
+  PLOGI << "taos python udf plugin open";
   // only one caller
   pythonCaller = new ThreadPool(1);
   auto f = pythonCaller->enqueue(doPyOpen, items, numItems);
@@ -691,13 +696,6 @@ int32_t pyClose() {
   int32_t ret = f.get();
   delete pythonCaller;
   pythonCaller = nullptr;
-  PLOGI << "taos python udf close";
+  PLOGI << "taos python udf plugin close";
   return ret;
 }
-// TODO: catch exception in pyInterfaceFunction
-// TODO: pyInterfacefucntion shall be externc
-// TODO: scalar proc udf column result meta set in udfd, remove it from sample libbit_and
-// TODO: so and install with taos-py-connector
-// TODO: optional function
-// TODO: log library
-// TODO: error python exception -2, unknown, change to app error
