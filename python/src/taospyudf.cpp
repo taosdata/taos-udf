@@ -6,6 +6,8 @@
 #include <plog/Initializers/RollingFileInitializer.h>
 #include <plog/Log.h>
 
+#include <dlfcn.h>
+
 #include <fstream>
 #include <iostream>
 
@@ -675,6 +677,8 @@ int32_t pyUdfAggFinish(SUdfInterBuf *buf, SUdfInterBuf *resultData, void *udfCtx
 }
 
 int32_t pyOpen(SScriptUdfEnvItem *items, int numItems) {
+  dlopen("libtaospyudf.so", RTLD_LAZY | RTLD_GLOBAL);
+
   std::string logPath("/tmp/");
   for (int i = 0; i < numItems; ++i) {
     if (std::string_view(items[i].name) == std::string_view("LOGDIR")) {
@@ -696,6 +700,7 @@ int32_t pyClose() {
   int32_t ret = f.get();
   delete pythonCaller;
   pythonCaller = nullptr;
+  dlopen("libtaospyudf.so", RTLD_LAZY | RTLD_GLOBAL);
   PLOGI << "taos python udf plugin close";
   return ret;
 }
