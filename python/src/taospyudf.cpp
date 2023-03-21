@@ -126,11 +126,20 @@ struct UdfDataBlock {
             break;
           }
           case TSDB_DATA_TYPE_UINT: {
-            int32_t c = obj.cast<int32_t>();
+            uint32_t c = obj.cast<uint32_t>();
             udfColDataSet(col, i, (char *)&c, false);
             break;
           }
-
+          case TSDB_DATA_TYPE_BIGINT: {
+            int64_t c = obj.cast<int64_t>();
+            udfColDataSet(col, i, (char*)&c, false);
+            break;            
+          }
+          case TSDB_DATA_TYPE_UBIGINT: {
+            uint64_t c = obj.cast<uint64_t>();
+            udfColDataSet(col, i, (char*)&c, false);
+            break;
+          }
           case TSDB_DATA_TYPE_FLOAT: {
             float c = obj.cast<float>();
             udfColDataSet(col, i, (char *)&c, false);
@@ -380,7 +389,14 @@ class PyAggUdf : public PyUdf {
           copyPyObj2Buf<uint32_t>(obj, resultData);
           break;
         }
-
+        case TSDB_DATA_TYPE_BIGINT: {
+          copyPyObj2Buf<int64_t>(obj, resultData);
+          break;
+        }
+        case TSDB_DATA_TYPE_UBIGINT: {
+          copyPyObj2Buf<uint64_t>(obj, resultData);
+          break;
+        }
         case TSDB_DATA_TYPE_FLOAT: {
           copyPyObj2Buf<float>(obj, resultData);
           break;
