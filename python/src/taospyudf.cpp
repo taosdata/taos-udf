@@ -11,7 +11,6 @@
 #include <fstream>
 #include <iostream>
 
-#include <filesystem>
 #include <regex>
 
 #include <atomic>
@@ -132,12 +131,12 @@ struct UdfDataBlock {
           }
           case TSDB_DATA_TYPE_BIGINT: {
             int64_t c = obj.cast<int64_t>();
-            udfColDataSet(col, i, (char*)&c, false);
-            break;            
+            udfColDataSet(col, i, (char *)&c, false);
+            break;
           }
           case TSDB_DATA_TYPE_UBIGINT: {
             uint64_t c = obj.cast<uint64_t>();
-            udfColDataSet(col, i, (char*)&c, false);
+            udfColDataSet(col, i, (char *)&c, false);
             break;
           }
           case TSDB_DATA_TYPE_FLOAT: {
@@ -202,9 +201,11 @@ class PyUdf {
         _funcType(udfInfo->funcType),
         _outputType(udfInfo->outputType),
         _outputLen(udfInfo->outputLen),
-        _bufSize(udfInfo->bufSize) { 
-    std::filesystem::path p(_path);
-    _module = py::module_::import(p.stem().c_str());
+        _bufSize(udfInfo->bufSize) {
+    std::string baseFilename = _path.substr(_path.find_last_of("/\\") + 1);
+    std::string::size_type const p(baseFilename.find_last_of('.'));
+    std::string stem = baseFilename.substr(0, p);
+    _module = py::module_::import(stem.c_str());
   }
 
  public:
@@ -447,7 +448,7 @@ PyUdf *PyUdf::createPyUdf(const SScriptUdfInfo *udfInfo) {
 }
 
 int32_t doPyUdfInit(SScriptUdfInfo *udf, void **pUdfCtx) {
-  PLOGD << "python udf init. path: " << udf->path << ", name: " << udf->name; 
+  PLOGD << "python udf init. path: " << udf->path << ", name: " << udf->name;
   try {
     PyUdf *pyUdf = PyUdf::createPyUdf(udf);
     pyUdf->loadFunctions();
@@ -456,12 +457,12 @@ int32_t doPyUdfInit(SScriptUdfInfo *udf, void **pUdfCtx) {
     PLOGE << "call pyUdf init function. error " << e.what();
     return TSDB_UDF_PYTHON_EXEC_FAILURE;
   }
-  PLOGI << "python udf init. name " << udf->name << ". context: " << static_cast<void*>(*pUdfCtx);
+  PLOGI << "python udf init. name " << udf->name << ". context: " << static_cast<void *>(*pUdfCtx);
   return 0;
 }
 
 int32_t doPyUdfDestroy(void *udfCtx) {
-  PLOGD << "python udf destory. context: " << static_cast<void*>(udfCtx); 
+  PLOGD << "python udf destory. context: " << static_cast<void *>(udfCtx);
   try {
     PyUdf *pyUdf = static_cast<PyUdf *>(udfCtx);
     delete pyUdf;
@@ -473,40 +474,40 @@ int32_t doPyUdfDestroy(void *udfCtx) {
 }
 
 int32_t doPyUdfScalarProc(SUdfDataBlock *block, SUdfColumn *resultCol, void *udfCtx) {
-  PLOGD << "call pyUdfScalar proc function. context " << static_cast<void*>(udfCtx) << ". rows: " << block->numOfRows;
+  PLOGD << "call pyUdfScalar proc function. context " << static_cast<void *>(udfCtx) << ". rows: " << block->numOfRows;
   try {
     PyUdf       *pyUdf = static_cast<PyUdf *>(udfCtx);
     PyScalarUdf *pyScalarUdf = dynamic_cast<PyScalarUdf *>(pyUdf);
     pyScalarUdf->scalarProc(block, resultCol);
     return 0;
   } catch (std::exception &e) {
-    PLOGE << "call pyUdfScalar proc function. context " << static_cast<void*>(udfCtx) << ". error: " << e.what();
+    PLOGE << "call pyUdfScalar proc function. context " << static_cast<void *>(udfCtx) << ". error: " << e.what();
     return TSDB_UDF_PYTHON_EXEC_FAILURE;
   }
   return 0;
 }
 
 int32_t doPyUdfAggStart(SUdfInterBuf *buf, void *udfCtx) {
-  PLOGD << "call pyUdfAgg start function. context " << static_cast<void*>(udfCtx);
+  PLOGD << "call pyUdfAgg start function. context " << static_cast<void *>(udfCtx);
   try {
     PyUdf    *pyUdf = static_cast<PyUdf *>(udfCtx);
     PyAggUdf *pyAggUdf = dynamic_cast<PyAggUdf *>(pyUdf);
     pyAggUdf->aggStart(buf);
   } catch (std::exception &e) {
-    PLOGE << "call pyUdfAgg start function. context " << static_cast<void*>(udfCtx) << " .error: " << e.what();
+    PLOGE << "call pyUdfAgg start function. context " << static_cast<void *>(udfCtx) << " .error: " << e.what();
     return TSDB_UDF_PYTHON_EXEC_FAILURE;
   }
   return 0;
 }
 
 int32_t doPyUdfAggProc(SUdfDataBlock *block, SUdfInterBuf *interBuf, SUdfInterBuf *newInterBuf, void *udfCtx) {
-  PLOGD << "call pyAggUdf proc function. context " << static_cast<void*>(udfCtx) << ". rows: " << block->numOfRows;
+  PLOGD << "call pyAggUdf proc function. context " << static_cast<void *>(udfCtx) << ". rows: " << block->numOfRows;
   try {
     PyUdf    *pyUdf = static_cast<PyUdf *>(udfCtx);
     PyAggUdf *pyAggUdf = dynamic_cast<PyAggUdf *>(pyUdf);
     pyAggUdf->aggProc(block, interBuf, newInterBuf);
   } catch (std::exception &e) {
-    PLOGE << "call pyAggUdf proc function. context " << static_cast<void*>(udfCtx) << ". error " << e.what();
+    PLOGE << "call pyAggUdf proc function. context " << static_cast<void *>(udfCtx) << ". error " << e.what();
     return TSDB_UDF_PYTHON_EXEC_FAILURE;
   }
   return 0;
@@ -527,13 +528,13 @@ int32_t doPyUdfAggMerge(SUdfInterBuf *inputBuf1, SUdfInterBuf *inputBuf2, SUdfIn
 }
 
 int32_t doPyUdfAggFinish(SUdfInterBuf *buf, SUdfInterBuf *resultData, void *udfCtx) {
-  PLOGD << "call pyAggUdf finish function. context " << static_cast<void*>(udfCtx);
+  PLOGD << "call pyAggUdf finish function. context " << static_cast<void *>(udfCtx);
   try {
     PyUdf    *pyUdf = static_cast<PyUdf *>(udfCtx);
     PyAggUdf *pyAggUdf = dynamic_cast<PyAggUdf *>(pyUdf);
     pyAggUdf->aggFinish(buf, resultData);
   } catch (std::exception &e) {
-    PLOGE << "call pyAggUdf finish function. context " << static_cast<void*>(udfCtx) << ". error " << e.what();
+    PLOGE << "call pyAggUdf finish function. context " << static_cast<void *>(udfCtx) << ". error " << e.what();
     return TSDB_UDF_PYTHON_EXEC_FAILURE;
   }
   return 0;
