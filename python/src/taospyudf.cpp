@@ -214,6 +214,14 @@ class PyUdf {
     _destroy = _module.attr("destroy");
   }
 
+  virtual void init() {
+    _init();
+  }
+
+  virtual void destroy() {
+    _destroy();
+  }
+
   virtual ~PyUdf() {}
 
   static PyUdf *createPyUdf(const SScriptUdfInfo *udfInfo);
@@ -452,6 +460,7 @@ int32_t doPyUdfInit(SScriptUdfInfo *udf, void **pUdfCtx) {
   try {
     PyUdf *pyUdf = PyUdf::createPyUdf(udf);
     pyUdf->loadFunctions();
+    pyUdf->init();
     *pUdfCtx = pyUdf;
   } catch (std::exception &e) {
     PLOGE << "call pyUdf init function. error " << e.what();
@@ -465,6 +474,7 @@ int32_t doPyUdfDestroy(void *udfCtx) {
   PLOGD << "python udf destory. context: " << static_cast<void *>(udfCtx);
   try {
     PyUdf *pyUdf = static_cast<PyUdf *>(udfCtx);
+    pyUdf->destroy();
     delete pyUdf;
   } catch (std::exception &e) {
     PLOGE << "call pyUdf destory function. error " << e.what();
