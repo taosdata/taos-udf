@@ -203,9 +203,24 @@ class PyUdf {
         _outputLen(udfInfo->outputLen),
         _bufSize(udfInfo->bufSize) {
     std::string baseFilename = _path.substr(_path.find_last_of("/\\") + 1);
-    std::string::size_type const p(baseFilename.find_last_of('.'));
+    std::size_t        p = baseFilename.find_last_of('.');
     std::string stem = baseFilename.substr(0, p);
-    _module = py::module_::import(stem.c_str());
+    bool        failed = false;
+    int tryTimes = 0;
+    do {
+      failed = false;
+      try {
+        _module = py::module_::import(stem.c_str());
+      } catch (std::exception &e) {
+        PLOGE << "py udf load module failure. error " << e.what();
+        failed = true;
+        if (tryTimes++ <= 10) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        } else {
+          throw e;
+        }
+      }
+    } while (failed);
   }
 
  public:
@@ -214,13 +229,9 @@ class PyUdf {
     _destroy = _module.attr("destroy");
   }
 
-  virtual void init() {
-    _init();
-  }
+  virtual void init() { _init(); }
 
-  virtual void destroy() {
-    _destroy();
-  }
+  virtual void destroy() { _destroy(); }
 
   virtual ~PyUdf() {}
 
