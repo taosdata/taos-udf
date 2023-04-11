@@ -1,6 +1,9 @@
 import taos
 import pytest
 import datetime
+import threading
+import time
+import subprocess
 
 rows = 3
 times = 1;
@@ -60,3 +63,28 @@ def test_udf(conn):
     assert len(r2) == 1
     assert len(r2[0]) == 1
     assert r2[0][0] == 3
+
+def test_replace_func(conn):
+    conn.execute("create or replace function udf1 as './py-udf/udf1v2.py' outputtype int language 'python'")
+    q = conn.query("select func_version from information_schema.ins_functions where name='udf1'")
+    r = q.fetch_all()
+    assert r[0][0] == 1
+    q = conn.query("select udf1(i) from udf.t")
+    r = q.fetch_all()
+    assert len(r) == rows
+    assert len(r[0]) == 1
+    for i in range(rows):
+        assert r[i][0] == 2*i
+
+#def test_udf_multiversion(conn):
+#    conn.execute("create or replace function udf1 as './py-udf/udf1slow.py' outputtype int language 'python'");
+#    start_lambda = lambda : (conn.query('select udf1(i) from udf.t').fetch_all())
+#    t1 = threading.Thread(target=start_lambda, args=())
+#    t1.start()
+#    conn.execute("create or replace function udf1 as './py-udf/udf1v2.py' outputtype int language 'python'")
+#    time.sleep(10)
+#    taos1 = subprocess.Popen(['taos', '-s', "select udf1(i) from udf.t"], stdout=subprocess.PIPE)
+#    output, error = taos1.communicate()
+#    print(output);
+#    taos1.wait()
+#    t1.join()
