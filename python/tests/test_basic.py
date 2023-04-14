@@ -76,15 +76,23 @@ def test_replace_func(conn):
     for i in range(rows):
         assert r[i][0] == 2*i
 
-#def test_udf_multiversion(conn):
-#    conn.execute("create or replace function udf1 as './py-udf/udf1slow.py' outputtype int language 'python'");
-#    start_lambda = lambda : (conn.query('select udf1(i) from udf.t').fetch_all())
-#    t1 = threading.Thread(target=start_lambda, args=())
-#    t1.start()
-#    conn.execute("create or replace function udf1 as './py-udf/udf1v2.py' outputtype int language 'python'")
-#    time.sleep(10)
-#    taos1 = subprocess.Popen(['taos', '-s', "select udf1(i) from udf.t"], stdout=subprocess.PIPE)
-#    output, error = taos1.communicate()
-#    print(output);
-#    taos1.wait()
-#    t1.join()
+def test_udf_multiversion(conn):
+    conn.execute("create or replace function udf1 as './py-udf/udf1slow.py' outputtype int language 'python'");
+    start_lambda = lambda : (conn.query('select udf1(i) from udf.t').fetch_all())
+    t1 = threading.Thread(target=start_lambda, args=())
+    t1.start()
+    conn.execute("create or replace function udf1 as './py-udf/udf1v2.py' outputtype int language 'python'")
+    time.sleep(8)
+    print("executing new udf within 10s");
+    q = conn.query("select udf1(i) from udf.t")
+    r = q.fetch_all()
+    for i in range(rows):
+        assert r[i][0] == i
+    print("executing udf after 10s");
+    time.sleep(3)
+    q = conn.query("select udf1(i) from udf.t")
+    r = q.fetch_all()
+    for i in range(rows):
+        assert r[i][0] == 2 * i
+
+    t1.join()
