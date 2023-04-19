@@ -6,7 +6,9 @@
 #include <plog/Initializers/RollingFileInitializer.h>
 #include <plog/Log.h>
 
+#ifndef WINDOWS
 #include <dlfcn.h>
+#endif
 
 #include <fstream>
 #include <iostream>
@@ -715,7 +717,9 @@ int32_t pyUdfAggFinish(SUdfInterBuf *buf, SUdfInterBuf *resultData, void *udfCtx
 }
 
 int32_t pyOpen(SScriptUdfEnvItem *items, int numItems) {
+  #ifndef WINDOWS
   dlopen("libtaospyudf.so", RTLD_LAZY | RTLD_GLOBAL);
+  #endif
 
   std::string logPath("/tmp/");
   for (int i = 0; i < numItems; ++i) {
