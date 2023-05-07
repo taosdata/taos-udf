@@ -585,7 +585,11 @@ int32_t doPyOpen(SScriptUdfEnvItem *items, int numItems) {
         }
       }
     }
+
     auto taosPyUdf = py::module::import("taospyudf");
+
+    std::string strSysPath = py::str(pySys.attr("path"));
+    PLOGI << "python sys path: " << strSysPath;
   } catch (std::exception &e) {
     PLOGE << "python udf plugin open error. " << e.what();
     return TSDB_UDF_PYTHON_EXEC_FAILURE;
