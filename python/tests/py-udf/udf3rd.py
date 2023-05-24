@@ -1,5 +1,5 @@
 import pickle
-import pandas as pd
+import numpy as np
 
 def init():
     pass
@@ -20,6 +20,8 @@ def reduce(datablock, buf):
     for i in range(rows):
         for j in range(cols):
             row.append(datablock.data(i, j))
-    df = pd.DataFrame(row)
-    new_state = df.cumsum().iloc[-1][0] + state
+    if len(row) > 1:
+        new_state = np.cumsum(row)[-1]
+    else:
+        new_state = state
     return pickle.dumps(new_state)
