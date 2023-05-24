@@ -21,5 +21,5 @@ def reduce(datablock, buf):
         for j in range(cols):
             row.append(datablock.data(i, j))
     df = pd.DataFrame(row)
-    new_state = df.sum()[0] + state
+    new_state = df.cumsum().iloc[-1][0] + state
     return pickle.dumps(new_state)
