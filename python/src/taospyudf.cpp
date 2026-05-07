@@ -6,10 +6,11 @@
 #include <plog/Initializers/RollingFileInitializer.h>
 #include <plog/Log.h>
 
-#ifndef WINDOWS
+#ifndef _WIN32
 #include <dlfcn.h>
 #endif
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 
@@ -720,12 +721,31 @@ int32_t pyUdfAggFinish(SUdfInterBuf *buf, SUdfInterBuf *resultData, void *udfCtx
   return f.get();
 }
 
-int32_t pyOpen(SScriptUdfEnvItem *items, int numItems) {
-  #ifndef WINDOWS
-  dlopen("libtaospyudf.so", RTLD_LAZY | RTLD_GLOBAL);
-  #endif
+// Self-dlopen with RTLD_GLOBAL is required on Linux so symbols exported
+// by this library are visible to Python C-extensions imported later.
+// macOS uses two-level namespace and a different filename suffix; Windows
+// (LoadLibrary) makes exported symbols globally visible automatically and
+// does not have dlopen at all.
+#if defined(__APPLE__)
+#  define TAOSPYUDF_SELF_DSO "libtaospyudf.dylib"
+#elif !defined(_WIN32)
+#  define TAOSPYUDF_SELF_DSO "libtaospyudf.so"
+#endif
 
-  std::string logPath("/tmp/");
+int32_t pyOpen(SScriptUdfEnvItem *items, int numItems) {
+#ifdef TAOSPYUDF_SELF_DSO
+  dlopen(TAOSPYUDF_SELF_DSO, RTLD_LAZY | RTLD_GLOBAL);
+#endif
+
+  std::error_code ec;
+  std::string logPath = std::filesystem::temp_directory_path(ec).string();
+  if (ec || logPath.empty()) {
+#ifdef _WIN32
+    logPath = ".";
+#else
+    logPath = "/tmp";
+#endif
+  }
   for (int i = 0; i < numItems; ++i) {
     if (std::string_view(items[i].name) == std::string_view("LOGDIR")) {
       logPath = std::string(items[i].value);
@@ -746,7 +766,9 @@ int32_t pyClose() {
   int32_t ret = f.get();
   delete pythonCaller;
   pythonCaller = nullptr;
-  dlopen("libtaospyudf.so", RTLD_LAZY | RTLD_GLOBAL);
+#ifdef TAOSPYUDF_SELF_DSO
+  dlopen(TAOSPYUDF_SELF_DSO, RTLD_LAZY | RTLD_GLOBAL);
+#endif
   PLOGI << "taos python udf plugin close";
   return ret;
 }

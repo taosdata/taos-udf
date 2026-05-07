@@ -21,4 +21,11 @@ target_link_libraries(taospyudf PUBLIC pybind11::embed)
 if (SKBUILD)
   install(TARGETS taospyudf DESTINATION taospyudf)
 endif ()
-install(TARGETS taospyudf DESTINATION /usr/local/lib)
+
+# Legacy convenience install for direct (non-pip) builds. Only meaningful
+# on Unix-like systems where /usr/local/lib is on the default loader path.
+# Windows users should install via ``pip install taospyudf`` (the wheel
+# places the DLL inside the Python package directory).
+if (NOT WIN32 AND NOT SKBUILD)
+  install(TARGETS taospyudf DESTINATION /usr/local/lib)
+endif ()
