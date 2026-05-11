@@ -580,7 +580,11 @@ int32_t doPyOpen(SScriptUdfEnvItem *items, int numItems) {
     py::module_ pySys = py::module_::import("sys");
     for (int i = 0; i < numItems; ++i) {
       if (std::string_view(items[i].name) == std::string_view("PYTHONPATH")) {
-        auto paths = resplit(std::string(items[i].value), std::regex("[;:]"));
+#ifdef _WIN32
+        auto paths = resplit(std::string(items[i].value), std::regex("[;]"));
+#else
+        auto paths = resplit(std::string(items[i].value), std::regex("[:]"));
+#endif
         for (auto &path : paths) {
           pySys.attr("path").attr("append")(path);
         }
