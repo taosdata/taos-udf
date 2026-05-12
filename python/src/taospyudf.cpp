@@ -749,7 +749,13 @@ int32_t pyOpen(SScriptUdfEnvItem *items, int numItems) {
   std::string selfDsoErr;
   const char *selfDsoTarget = TAOSPYUDF_SELF_DSO;
   Dl_info     dlInfo{};
-  if (dladdr(reinterpret_cast<void *>(&pyOpen), &dlInfo) != 0 && dlInfo.dli_fname != nullptr) {
+  // Use the address of a local static (an object, not a function) so the
+  // implicit conversion to void* is well-defined.  Function-pointer to void*
+  // is only conditionally supported in C++; POSIX guarantees it for dlsym
+  // but standard C++ does not.  Any address inside this DSO satisfies dladdr.
+  static const char selfDsoAnchor = 0;
+  if (dladdr(const_cast<void *>(static_cast<const void *>(&selfDsoAnchor)), &dlInfo) != 0 &&
+      dlInfo.dli_fname != nullptr) {
     selfDsoTarget = dlInfo.dli_fname;
   }
   if (dlopen(selfDsoTarget, RTLD_LAZY | RTLD_GLOBAL) == nullptr) {
