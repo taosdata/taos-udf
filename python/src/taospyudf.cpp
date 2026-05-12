@@ -738,27 +738,40 @@ int32_t pyUdfAggFinish(SUdfInterBuf *buf, SUdfInterBuf *resultData, void *udfCtx
 
 int32_t pyOpen(SScriptUdfEnvItem *items, int numItems) {
 #ifdef TAOSPYUDF_SELF_DSO
-  dlopen(TAOSPYUDF_SELF_DSO, RTLD_LAZY | RTLD_GLOBAL);
+  // Promote our symbols to global so Python C extensions loaded later by the
+  // embedded interpreter can resolve them.  Capture any failure so we can
+  // surface it via plog once the logger is initialized below.
+  std::string selfDsoErr;
+  if (dlopen(TAOSPYUDF_SELF_DSO, RTLD_LAZY | RTLD_GLOBAL) == nullptr) {
+    const char *e = dlerror();
+    selfDsoErr = e ? e : "unknown dlopen error";
+  }
 #endif
 
   std::error_code ec;
-  std::string logPath = std::filesystem::temp_directory_path(ec).string();
-  if (ec || logPath.empty()) {
+  std::filesystem::path logDir = std::filesystem::temp_directory_path(ec);
+  if (ec || logDir.empty()) {
 #ifdef _WIN32
-    logPath = ".";
+    logDir = ".";
 #else
-    logPath = "/tmp";
+    logDir = "/tmp";
 #endif
   }
   for (int i = 0; i < numItems; ++i) {
     if (std::string_view(items[i].name) == std::string_view("LOGDIR")) {
-      logPath = std::string(items[i].value);
+      logDir = items[i].value;
       break;
     }
   }
-  logPath += std::string("/taospyudf.log");
+  std::string logPath = (logDir / "taospyudf.log").string();
   plog::init(plog::info, logPath.c_str(), 50 * 1024 * 1024, 5);
   PLOGI << "taos python udf plugin open";
+#ifdef TAOSPYUDF_SELF_DSO
+  if (!selfDsoErr.empty()) {
+    PLOGE << "dlopen(" TAOSPYUDF_SELF_DSO ") failed: " << selfDsoErr
+          << " — Python C extensions may fail to resolve our symbols";
+  }
+#endif
   // only one caller
   pythonCaller = new ThreadPool(1);
   auto f = pythonCaller->enqueue(doPyOpen, items, numItems);
@@ -770,9 +783,6 @@ int32_t pyClose() {
   int32_t ret = f.get();
   delete pythonCaller;
   pythonCaller = nullptr;
-#ifdef TAOSPYUDF_SELF_DSO
-  dlopen(TAOSPYUDF_SELF_DSO, RTLD_LAZY | RTLD_GLOBAL);
-#endif
   PLOGI << "taos python udf plugin close";
   return ret;
 }

@@ -23,9 +23,12 @@ if (SKBUILD)
 endif ()
 
 # Legacy convenience install for direct (non-pip) builds. Only meaningful
-# on Unix-like systems where /usr/local/lib is on the default loader path.
+# on Unix-like systems where the libdir is on the default loader path.
 # Windows users should install via ``pip install taospyudf`` (the wheel
 # places the DLL inside the Python package directory).
+# Honor CMAKE_INSTALL_PREFIX (default /usr/local) and the multiarch-aware
+# libdir from GNUInstallDirs so distros / packagers can relocate the install.
 if (NOT WIN32 AND NOT SKBUILD)
-  install(TARGETS taospyudf DESTINATION /usr/local/lib)
+  include(GNUInstallDirs)
+  install(TARGETS taospyudf DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif ()
