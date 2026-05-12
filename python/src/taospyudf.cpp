@@ -580,6 +580,7 @@ int32_t doPyOpen(SScriptUdfEnvItem *items, int numItems) {
     py::module_ pySys = py::module_::import("sys");
     for (int i = 0; i < numItems; ++i) {
       if (std::string_view(items[i].name) == std::string_view("PYTHONPATH")) {
+        if (items[i].value == nullptr) continue;
 #ifdef _WIN32
         static const std::regex pathSep(";");
 #else
@@ -768,8 +769,10 @@ int32_t pyOpen(SScriptUdfEnvItem *items, int numItems) {
   }
   for (int i = 0; i < numItems; ++i) {
     if (std::string_view(items[i].name) == std::string_view("LOGDIR")) {
-      logDir = items[i].value;
-      break;
+      if (items[i].value) {
+        logDir = items[i].value;
+        break;
+      }
     }
   }
   std::filesystem::path logPath = logDir / "taospyudf.log";
@@ -777,7 +780,7 @@ int32_t pyOpen(SScriptUdfEnvItem *items, int numItems) {
   PLOGI << "taos python udf plugin open";
 #ifdef TAOSPYUDF_SELF_DSO
   if (!selfDsoErr.empty()) {
-    PLOGE << selfDsoErr << " — Python C extensions may fail to resolve our symbols";
+    PLOGE << selfDsoErr << " - Python C extensions may fail to resolve our symbols";
   }
 #endif
   // only one caller
