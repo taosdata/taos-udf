@@ -18,6 +18,14 @@ include_directories(src)
 add_library(taospyudf SHARED src/taospyudf.cpp src/taospyudf.h)
 target_link_libraries(taospyudf PUBLIC pybind11::embed)
 
+# dladdr / Dl_info are GNU extensions; on glibc they are only declared from
+# <dlfcn.h> when _GNU_SOURCE is set.  macOS exposes them unconditionally and
+# Windows doesn't compile that code path at all.
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_compile_definitions(taospyudf PRIVATE _GNU_SOURCE)
+  target_link_libraries(taospyudf PRIVATE ${CMAKE_DL_LIBS})
+endif ()
+
 if (SKBUILD)
   install(TARGETS taospyudf DESTINATION taospyudf)
 endif ()
