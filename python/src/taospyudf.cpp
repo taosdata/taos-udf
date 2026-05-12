@@ -581,10 +581,11 @@ int32_t doPyOpen(SScriptUdfEnvItem *items, int numItems) {
     for (int i = 0; i < numItems; ++i) {
       if (std::string_view(items[i].name) == std::string_view("PYTHONPATH")) {
 #ifdef _WIN32
-        auto paths = resplit(std::string(items[i].value), std::regex("[;]"));
+        static const std::regex pathSep(";");
 #else
-        auto paths = resplit(std::string(items[i].value), std::regex("[:]"));
+        static const std::regex pathSep(":");
 #endif
+        auto paths = resplit(std::string(items[i].value), pathSep);
         for (auto &path : paths) {
           pySys.attr("path").attr("append")(path);
         }
@@ -739,12 +740,20 @@ int32_t pyUdfAggFinish(SUdfInterBuf *buf, SUdfInterBuf *resultData, void *udfCtx
 int32_t pyOpen(SScriptUdfEnvItem *items, int numItems) {
 #ifdef TAOSPYUDF_SELF_DSO
   // Promote our symbols to global so Python C extensions loaded later by the
-  // embedded interpreter can resolve them.  Capture any failure so we can
-  // surface it via plog once the logger is initialized below.
+  // embedded interpreter can resolve them.  Resolve our own loaded path via
+  // dladdr first so dlopen succeeds regardless of LD_LIBRARY_PATH / install
+  // prefix; fall back to the bare SONAME if dladdr is unavailable.  Capture
+  // any failure so we can surface it via plog once the logger is initialized
+  // below.
   std::string selfDsoErr;
-  if (dlopen(TAOSPYUDF_SELF_DSO, RTLD_LAZY | RTLD_GLOBAL) == nullptr) {
+  const char *selfDsoTarget = TAOSPYUDF_SELF_DSO;
+  Dl_info     dlInfo{};
+  if (dladdr(reinterpret_cast<void *>(&pyOpen), &dlInfo) != 0 && dlInfo.dli_fname != nullptr) {
+    selfDsoTarget = dlInfo.dli_fname;
+  }
+  if (dlopen(selfDsoTarget, RTLD_LAZY | RTLD_GLOBAL) == nullptr) {
     const char *e = dlerror();
-    selfDsoErr = e ? e : "unknown dlopen error";
+    selfDsoErr = std::string("dlopen(") + selfDsoTarget + "): " + (e ? e : "unknown error");
   }
 #endif
 
@@ -763,13 +772,12 @@ int32_t pyOpen(SScriptUdfEnvItem *items, int numItems) {
       break;
     }
   }
-  std::string logPath = (logDir / "taospyudf.log").string();
+  std::filesystem::path logPath = logDir / "taospyudf.log";
   plog::init(plog::info, logPath.c_str(), 50 * 1024 * 1024, 5);
   PLOGI << "taos python udf plugin open";
 #ifdef TAOSPYUDF_SELF_DSO
   if (!selfDsoErr.empty()) {
-    PLOGE << "dlopen(" TAOSPYUDF_SELF_DSO ") failed: " << selfDsoErr
-          << " — Python C extensions may fail to resolve our symbols";
+    PLOGE << selfDsoErr << " — Python C extensions may fail to resolve our symbols";
   }
 #endif
   // only one caller
