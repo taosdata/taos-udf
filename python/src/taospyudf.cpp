@@ -789,8 +789,10 @@ int32_t pyOpen(SScriptUdfEnvItem *items, int numItems) {
     PLOGE << selfDsoErr << " - Python C extensions may fail to resolve our symbols";
   }
 #endif
-  // only one caller
-  pythonCaller = new ThreadPool(1);
+  // only one caller; guard against repeated pyOpen without pyClose
+  if (pythonCaller == nullptr) {
+    pythonCaller = new ThreadPool(1);
+  }
   auto f = pythonCaller->enqueue(doPyOpen, items, numItems);
   return f.get();
 }
